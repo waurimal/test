@@ -118,19 +118,48 @@
             </form>
         </section>
 
+        <!-- [VIEW 2.5] 학생 결과 화면 (제출 후 본인 확인용) -->
+        <section id="student-result-view" class="view hidden bg-white p-6 md:p-10 rounded-xl shadow-lg max-w-2xl mx-auto mt-12 border border-gray-100">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-extrabold text-indigo-600">🎉 채점 결과 🎉</h2>
+                <p class="text-gray-500 mt-2 font-semibold" id="result-student-info"></p>
+            </div>
+            
+            <!-- 점수 요약 박스 -->
+            <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 text-center shadow-inner">
+                <div class="text-4xl font-black text-indigo-700" id="result-total-score">총점: - 점</div>
+                <div class="mt-4 flex justify-center gap-4 text-sm font-bold text-gray-600">
+                    <span id="result-choice-score" class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full"></span>
+                    <span id="result-short-score" class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full"></span>
+                </div>
+            </div>
+
+            <!-- 문항별 세부 채점 결과 -->
+            <div class="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar" id="result-details">
+                <!-- JS에서 동적 생성 -->
+            </div>
+
+            <div class="mt-8 text-center">
+                <button onclick="location.reload()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-10 rounded-xl shadow-lg transition duration-200">
+                    처음으로 돌아가기
+                </button>
+            </div>
+        </section>
+
         <!-- [VIEW 3] 교사 로그인 화면 -->
         <section id="teacher-login-view" class="view hidden bg-white p-6 md:p-10 rounded-xl shadow-lg max-w-md mx-auto mt-12 border border-gray-100">
             <h2 class="text-3xl font-extrabold text-center mb-8 text-indigo-600">👩‍🏫 교사 인증</h2>
-            <div class="space-y-5">
+            <!-- form 태그 추가: 엔터키로 제출(onsubmit) 가능하도록 처리 -->
+            <form onsubmit="window.loginAsTeacher(event)" class="space-y-5">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">비밀번호 입력 (초기: 1234)</label>
-                    <input type="password" id="teacher-pwd-input" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <input type="password" id="teacher-pwd-input" required class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
                 <div class="flex space-x-3 pt-2">
-                    <button onclick="window.loginAsTeacher()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition shadow-md">로그인</button>
-                    <button onclick="window.switchView('student-login-view')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-lg transition">돌아가기</button>
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition shadow-md">로그인</button>
+                    <button type="button" onclick="window.switchView('student-login-view')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-lg transition">돌아가기</button>
                 </div>
-            </div>
+            </form>
         </section>
 
         <!-- [VIEW 4] 교사용 관리 대시보드 -->
@@ -238,7 +267,7 @@
         
         signInAnonymously(auth).catch((error) => console.error("Auth Error:", error));
 
-        // TTS 오디오 로딩 및 준비 (다중 화자 고도화)
+        // TTS 오디오 로딩 및 준비
         let availableVoices = [];
         function initVoices() {
             availableVoices = window.speechSynthesis.getVoices();
@@ -253,9 +282,8 @@
                 alert("이 브라우저는 음성 듣기를 지원하지 않습니다.");
                 return;
             }
-            window.speechSynthesis.cancel(); // 현재 재생 중지
+            window.speechSynthesis.cancel(); 
 
-            // OS 및 브라우저 환경에 따라 최적의 남/여 목소리 탐색
             const femaleVoice = availableVoices.find(v => v.lang.startsWith('en') && /female|zira|samantha|victoria|susan/i.test(v.name)) 
                              || availableVoices.find(v => v.lang.startsWith('en'));
             const maleVoice = availableVoices.find(v => v.lang.startsWith('en') && /male|david|alex|daniel|george/i.test(v.name)) 
@@ -274,7 +302,6 @@
                 msg.lang = 'en-US';
                 msg.rate = 0.85; 
 
-                // 화자에 맞춰 목소리와 피치 배정
                 if (speaker === 'G' || speaker === 'W') { 
                     if(femaleVoice) msg.voice = femaleVoice;
                     msg.pitch = 1.3; 
@@ -289,12 +316,12 @@
             });
         };
 
-        // 서답형 채점 유틸리티 함수 (공백/마침표 제거 후 비교)
+        // 서답형 채점 유틸리티 함수
         function gradeShortAnswer(q, userVal) {
             if (!userVal) return false;
             const normalizedUser = userVal.trim().toLowerCase().replace(/\s+/g, ' ').replace(/[.,!?]/g, '');
 
-            if (q.keywords) { // 자유 서술형(키워드 포함 여부)
+            if (q.keywords) { 
                 return q.keywords.some(kw => normalizedUser.includes(kw));
             }
 
@@ -312,7 +339,7 @@
             return false;
         }
 
-        // 3. 문항 데이터 (총 25문항 - 서답형 정답(ans) 데이터 추가)
+        // 3. 문항 데이터 
         const questions = [
             // 듣기 (1~8)
             { id: 1, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "1. 대화를 듣고, 남자아이가 몇 학년인지 고르세요.", script: "G: What grade are you in? | B: I'm in the sixth grade.", options: ["2학년", "3학년", "4학년", "5학년", "6학년"], ans: 4 },
@@ -331,7 +358,7 @@
             { id: 12, type: "choice", area: "읽기", pl: "Level 2 - 보통", q: "12. 다음 일기에서 글쓴이가 슬픈 진짜 이유를 고르세요.\n'I am sad because my best friend moved to another city.'", options: ["비가 와서", "축구를 못 해서", "친구가 이사를 가서", "길을 잃어서", "개가 아파서"], ans: 2 },
             { id: 13, type: "choice", area: "읽기", pl: "Level 3 - 우수", q: "13. 문맥상 빈칸에 들어갈 기대 표현을 고르세요.\n'I have a big party. I (  ⓐ  ) wait!'", options: ["don't", "can't", "am", "do", "have"], ans: 1 },
             { id: 14, type: "choice", area: "읽기", pl: "Level 3 - 우수", q: "14. 다음 안내를 읽고 도착지의 방향을 고르세요.\n'Go straight one block and turn left. It's on your right.'", options: ["왼쪽", "오른쪽", "직진", "뒤쪽", "길 건너편"], ans: 1 },
-            { id: 15, type: "short", area: "읽기", pl: "Level 3 - 우수", q: "15. 미아 전단지 [He has short straight hair. He is wearing a yellow cap.]를 읽고 빈칸을 채우세요.\nHair: ( ⓐ ) straight hair / Clothes: a yellow ( ⓑ )\n(입력예시: long, shirt)", ans: ["short, cap", "short,cap", "short cap"] },
+            { id: 15, type: "short", area: "읽기", pl: "Level 3 - 우수", q: "15. 다음 미아 찾기 전단지를 읽고 빈칸을 채우세요.\nHair: ( ⓐ ) straight hair / Clothes: a yellow ( ⓑ )\n(입력예시: long, shirt)", customHtml: `<div class="bg-yellow-50 p-6 border-4 border-yellow-400 border-dashed rounded-lg text-center my-6 shadow-sm max-w-sm mx-auto"><h3 class="text-red-600 font-black text-3xl mb-3 tracking-widest">MISSING</h3><div class="text-7xl mb-4">👦</div><p class="font-bold text-gray-800 text-lg">He has short straight hair.</p><p class="font-bold text-gray-800 text-lg">He is wearing a yellow cap.</p><p class="text-sm text-gray-500 mt-4 border-t border-yellow-200 pt-2">Please call 112</p></div>`, ans: ["short, cap", "short,cap", "short cap"] },
             { id: 16, type: "short", area: "읽기", pl: "Level 4 - 매우 우수", q: "16. 'Because of this, I can't sleep now!'에서 글쓴이가 밤에 잠을 자지 못하는 이유를 본문에서 찾아 우리말로 자유롭게 쓰세요.\n(예: 내일 놀이공원에 가기 때문에, 어린이날이라서 등)", keywords: ["놀이공원", "어린이날", "어린이 날"] },
             { id: 17, type: "choice", area: "읽기", pl: "Level 4 - 매우 우수", q: "17. 'Go straight two blocks and turn right. It's next to the bank.' 이메일을 읽고, 도착지가 은행의 어느 쪽에 위치해 있는지 고르세요.", options: ["앞에", "뒤에", "옆에", "안에", "건너편에"], ans: 2 },
             
@@ -390,13 +417,10 @@
             let omrHtml = "";
             
             questions.forEach((q, idx) => {
-                // 음성 재생 버튼 처리
                 const audioBtn = q.script ? `<button type="button" onclick="window.playAudio('${q.script.replace(/'/g, "\\'")}')" class="ml-3 inline-flex items-center justify-center bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-1.5 rounded-full text-sm font-bold transition shadow-sm"><svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 3.5a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .5.5 5 5 0 0 0 5-5V9a5 5 0 0 0-5-5z"></path></svg>▶ 듣기 재생</button>` : '';
-                
-                // 이미지/이모지 처리
                 const imgElement = q.img ? `<div class="text-5xl text-center py-4 bg-gray-50 rounded-lg my-3 border border-dashed border-gray-300 tracking-widest">${q.img}</div>` : '';
+                const customHtmlElement = q.customHtml ? q.customHtml : '';
 
-                // 본문 렌더링
                 let html = `
                     <div id="q-container-${q.id}" class="pt-8 first:pt-4 scroll-mt-28 font-normal">
                         <div class="flex items-center bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 w-fit">
@@ -405,6 +429,7 @@
                         </div>
                         ${imgElement}
                         <p class="text-lg font-bold text-gray-800 mb-5 whitespace-pre-line leading-relaxed">${q.q}</p>
+                        ${customHtmlElement}
                 `;
 
                 if(q.type === 'choice') {
@@ -427,7 +452,6 @@
                 html += `</div>`;
                 container.innerHTML += html;
                 
-                // OMR 사이드바 아이템 생성 (리스트 형태)
                 omrHtml += `
                     <div id="omr-box-${q.id}" class="flex justify-between items-center p-2.5 rounded-lg border border-gray-200 bg-white cursor-pointer hover:bg-gray-50 transition" onclick="document.getElementById('q-container-${q.id}').scrollIntoView({behavior: 'smooth'})">
                         <span class="font-extrabold text-gray-600 text-sm whitespace-nowrap mr-2">${q.id}번</span>
@@ -438,7 +462,6 @@
             
             omrContainer.innerHTML = omrHtml;
 
-            // 폼 입력 시 OMR 갱신 이벤트 등록 (응답 내용 표시)
             document.getElementById('exam-form').addEventListener('input', () => {
                 const formData = new FormData(document.getElementById('exam-form'));
                 questions.forEach(q => {
@@ -525,9 +548,46 @@
             };
 
             try {
+                // 답안 서버 저장
                 await addDoc(collection(db, basePath, 'submissions'), submissionData);
-                alert("✅ 답안 제출 및 자동 채점이 완료되었습니다. 수고하셨습니다!");
-                location.reload();
+                alert("✅ 답안 제출 및 자동 채점이 완료되었습니다.");
+                
+                // 학생 결과 화면(VIEW 2.5) 데이터 바인딩 및 표시
+                document.getElementById('result-student-info').innerText = `${currentStudent.grade}학년 ${currentStudent.class}반 ${currentStudent.number}번 ${currentStudent.name}`;
+                document.getElementById('result-total-score').innerText = `총점: ${choiceScore + shortScore} / ${maxChoiceScore + maxShortScore}점`;
+                document.getElementById('result-choice-score').innerText = `선다형: ${choiceScore} / ${maxChoiceScore}`;
+                document.getElementById('result-short-score').innerText = `서답형: ${shortScore} / ${maxShortScore}`;
+
+                let resultDetailsHtml = "";
+                questions.forEach(q => {
+                    const uAns = answers[q.id];
+                    let isCorrect = false;
+                    let displayAns = uAns || "미응답";
+
+                    if(q.type === 'choice') {
+                        isCorrect = parseInt(uAns) === q.ans;
+                        if(uAns) displayAns = `(${parseInt(uAns) + 1})번`;
+                    } else {
+                        isCorrect = gradeShortAnswer(q, uAns);
+                    }
+
+                    const markHtml = isCorrect 
+                        ? `<span class="text-green-600 font-black text-2xl">O</span>` 
+                        : `<span class="text-red-500 font-black text-2xl">X</span>`;
+                    const bgClass = isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+
+                    resultDetailsHtml += `
+                        <div class="flex justify-between items-center p-4 rounded-lg border ${bgClass}">
+                            <div class="font-bold text-gray-700 w-20 flex-shrink-0">${q.id}번 문항</div>
+                            <div class="text-sm text-gray-600 truncate flex-grow px-4 text-right">내 답안: <b>${displayAns}</b></div>
+                            <div class="w-8 text-center">${markHtml}</div>
+                        </div>
+                    `;
+                });
+                
+                document.getElementById('result-details').innerHTML = resultDetailsHtml;
+                window.switchView('student-result-view'); // 뷰 전환
+
             } catch(error) {
                 console.error("Submit Error: ", error);
                 alert("제출 중 오류가 발생했습니다. 교사에게 문의하세요.");
@@ -537,7 +597,8 @@
         };
 
         // 6. 교사용 모드 로직
-        window.loginAsTeacher = () => {
+        window.loginAsTeacher = (e) => {
+            if(e) e.preventDefault(); // 엔터키 폼 제출 방지 후 로직 실행
             const pwdInput = document.getElementById('teacher-pwd-input').value;
             if(pwdInput === actualPassword) {
                 window.switchView('teacher-dashboard-view');
