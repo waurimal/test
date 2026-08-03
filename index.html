@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6학년 1학기 영어 종합 평가 시스템</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen">
+
+    <!-- 탑바 -->
+    <header class="bg-indigo-600 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-50">
+        <h1 class="text-xl font-bold">🇬🇧 6학년 1학기 영어 종합 평가 (Lessons 1~6)</h1>
+        <button onclick="window.switchView('teacher-login-view')" class="bg-indigo-800 hover:bg-indigo-900 px-4 py-2 rounded text-sm font-semibold transition shadow-sm">
+            교사용 모드
+        </button>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 md:p-8">
+
+        <!-- [VIEW 1] 학생 로그인 (진입 화면) -->
+        <section id="student-login-view" class="view bg-white p-6 md:p-10 rounded-xl shadow-lg max-w-md mx-auto mt-12 border border-gray-100">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-extrabold text-indigo-600">학생 로그인</h2>
+                <p class="text-sm text-gray-500 mt-2">평가를 시작하기 위해 정보를 입력하세요.</p>
+            </div>
+            <form id="login-form" onsubmit="window.startExam(event)" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">학교명</label>
+                    <input type="text" id="stu-school" required placeholder="예) 서울초등학교" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">학년</label>
+                        <input type="number" id="stu-grade" value="6" readonly class="w-full mt-1 p-3 border border-gray-300 bg-gray-100 rounded-lg text-center text-gray-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">반</label>
+                        <input type="number" id="stu-class" required min="1" max="20" placeholder="반" class="w-full mt-1 p-3 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">번호</label>
+                        <input type="number" id="stu-number" required min="1" max="50" placeholder="번호" class="w-full mt-1 p-3 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">이름</label>
+                    <input type="text" id="stu-name" required placeholder="이름을 입력하세요" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-4 rounded-lg shadow-md transition duration-200 mt-4 text-lg">
+                    시험 시작하기 (40분)
+                </button>
+            </form>
+        </section>
+
+        <!-- [VIEW 2] 시험지 화면 (학생 평가용) -->
+        <section id="exam-view" class="view hidden bg-white p-6 md:p-8 rounded-xl shadow-lg space-y-8 border border-gray-100">
+            <!-- 상단 정보 및 타이머 -->
+            <div class="flex flex-col md:flex-row justify-between items-center border-b pb-6 mb-6 gap-4">
+                <div class="text-base md:text-lg font-bold text-indigo-900 bg-indigo-50 px-4 py-2 rounded-lg" id="exam-student-info"></div>
+                <div class="text-xl font-black text-red-600 bg-red-50 px-6 py-3 rounded-full border border-red-200 shadow-sm flex items-center gap-2">
+                    ⏱ 남은 시간: <span id="timer">40:00</span>
+                </div>
+            </div>
+
+            <!-- 문항 출력 컨테이너 -->
+            <form id="exam-form" onsubmit="window.submitExam(event)" class="space-y-10 divide-y divide-gray-100">
+                <div id="questions-container" class="space-y-10"></div>
+                
+                <div class="pt-10 text-center">
+                    <button id="submit-btn" type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold text-xl py-4 px-12 rounded-xl shadow-lg transition duration-200 w-full md:w-auto">
+                        답안지 최종 제출하기
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- [VIEW 3] 교사 로그인 화면 -->
+        <section id="teacher-login-view" class="view hidden bg-white p-6 md:p-10 rounded-xl shadow-lg max-w-md mx-auto mt-12 border border-gray-100">
+            <h2 class="text-3xl font-extrabold text-center mb-8 text-indigo-600">👩‍🏫 교사 인증</h2>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">비밀번호 입력 (초기: 1234)</label>
+                    <input type="password" id="teacher-pwd-input" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div class="flex space-x-3 pt-2">
+                    <button onclick="window.loginAsTeacher()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition shadow-md">로그인</button>
+                    <button onclick="window.switchView('student-login-view')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-lg transition">돌아가기</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- [VIEW 4] 교사용 관리 대시보드 -->
+        <section id="teacher-dashboard-view" class="view hidden bg-white p-6 md:p-8 rounded-xl shadow-lg space-y-6 border border-gray-100">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-6 gap-4">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-indigo-800">학생 응답 및 성취도 관리 대시보드</h2>
+                    <p class="text-sm text-gray-500 font-medium mt-1">내재적 설정법(ESS) 기반 평가 결과</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="window.fetchSubmissions()" class="bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold text-sm px-4 py-2 rounded-lg transition">새로고침</button>
+                    <button onclick="window.openPasswordModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold text-sm px-4 py-2 rounded-lg transition">비밀번호 변경</button>
+                    <button onclick="window.logoutTeacher()" class="bg-red-500 hover:bg-red-600 text-white font-semibold text-sm px-4 py-2 rounded-lg transition shadow-sm">로그아웃</button>
+                </div>
+            </div>
+
+            <!-- 실시간 요약 카드 -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100 text-center shadow-sm">
+                    <div class="text-xs font-bold text-indigo-500 uppercase tracking-wide">총 제출 학생 수</div>
+                    <div class="text-3xl font-extrabold text-indigo-900 mt-2" id="stat-total-students">0명</div>
+                </div>
+                <div class="bg-green-50 p-5 rounded-xl border border-green-100 text-center shadow-sm">
+                    <div class="text-xs font-bold text-green-600 uppercase tracking-wide">평균 점수(객관식)</div>
+                    <div class="text-3xl font-extrabold text-green-900 mt-2" id="stat-avg-score">0 / 8점</div>
+                </div>
+            </div>
+
+            <!-- 학생 데이터 테이블 -->
+            <div class="overflow-x-auto border border-gray-200 rounded-xl shadow-sm mt-6">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-5 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">소속 정보</th>
+                            <th class="px-5 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">이름</th>
+                            <th class="px-5 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">제출 시각</th>
+                            <th class="px-5 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">객관식 점수</th>
+                            <th class="px-5 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">응답 데이터 확인 (객관식+서답형)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="student-data-rows" class="bg-white divide-y divide-gray-200 text-sm">
+                        <!-- JS에서 동적으로 삽입 -->
+                        <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">데이터를 불러오는 중입니다...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- [MODAL] 교사 비밀번호 변경 -->
+    <div id="pwd-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white p-8 rounded-xl max-w-sm w-full space-y-6 mx-4 shadow-2xl">
+            <h3 class="text-xl font-extrabold text-gray-900">교사용 비밀번호 변경</h3>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">새 비밀번호</label>
+                <input type="password" id="new-teacher-pwd" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+            <div class="flex justify-end space-x-3 pt-2">
+                <button onclick="window.closePasswordModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-5 py-2.5 rounded-lg transition">취소</button>
+                <button onclick="window.changeTeacherPassword()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg transition shadow-md">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== JavaScript (Firebase v9) ==================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+
+        // 1. 제공해주신 Firebase 구성
+        const firebaseConfig = {
+            apiKey: "AIzaSyCjcQtgw4cVkl1HWjo49EDr8W-jJXkKy1Q",
+            authDomain: "test-b517e.firebaseapp.com",
+            projectId: "test-b517e",
+            storageBucket: "test-b517e.firebasestorage.app",
+            messagingSenderId: "527815074812",
+            appId: "1:527815074812:web:7ff3e0280a274af522c879",
+            measurementId: "G-S087STJN93"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Firestore 경로 설정 (규칙 준수)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'english-exam-system';
+        const basePath = `artifacts/${appId}/public/data`;
+        
+        let currentUser = null;
+        let actualPassword = "1234";
+
+        // 2. 인증 초기화 (데이터베이스 읽기/쓰기 권한 확보)
+        onAuthStateChanged(auth, async (user) => {
+            currentUser = user;
+            if (user) {
+                // 교사 비밀번호 세팅 가져오기
+                const pwdDoc = await getDoc(doc(db, basePath, 'settings', 'config', 'password'));
+                if (pwdDoc.exists()) {
+                    actualPassword = pwdDoc.data().value;
+                } else {
+                    await setDoc(doc(db, basePath, 'settings', 'config', 'password'), { value: "1234" });
+                }
+            }
+        });
+        
+        // 자동 익명 로그인 실행
+        signInAnonymously(auth).catch((error) => console.error("Auth Error:", error));
+
+        // 3. 문항 데이터 (총 25문항)
+        const questions = [
+            // 듣기 (1~8)
+            { id: 1, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "1. 대화를 듣고, 남자아이가 몇 학년인지 고르세요.\n(대본: What grade are you in? / I'm in the sixth grade.)", options: ["2학년", "3학년", "4학년", "5학년", "6학년"], ans: 4 },
+            { id: 2, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "2. 대화를 듣고, 두 사람이 이야기하고 있는 계절을 고르세요.\n(대본: What season do you like? / I like winter.)", options: ["봄 (spring)", "여름 (summer)", "가을 (fall)", "겨울 (winter)", "건기 (dry season)"], ans: 3 },
+            { id: 3, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "3. 대화를 듣고, 여자아이의 생일을 달력에서 고르세요.\n(대본: When is your birthday? / It's on April fifth.)", options: ["3월 5일", "4월 5일", "5월 4일", "4월 15일", "5월 15일"], ans: 1 },
+            { id: 4, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "4. 대화를 듣고, 남자아이가 기분이 좋은 이유로 알맞은 것을 고르세요.\n(대본: Why are you happy? / Because I got a black belt in Taekwondo.)", options: ["생일이라서", "수학 시험을 잘 봐서", "검은 띠를 따서", "방학이 시작되어서", "개가 병이 나아서"], ans: 2 },
+            { id: 5, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "5. 대화를 듣고, 여자아이가 가려고 하는 목적지의 위치를 설명 중 고르세요.\n(대본: Go straight one block and turn right. It's on your left.)", options: ["직진 후 좌회전", "직진 후 우회전", "길 건너편", "은행 옆", "두 블록 직진"], ans: 1 },
+            { id: 6, type: "choice", area: "듣기", pl: "Level 3 - 우수", q: "6. 대화를 듣고, 설명하는 사람의 특징을 고르세요.\n(대본: He has short curly hair. He is wearing a yellow shirt.)", options: ["긴 머리에 파란 셔츠", "짧은 생머리에 노란 셔츠", "짧은 곱슬머리에 노란 셔츠", "긴 곱슬머리에 빨간 셔츠", "짧은 생머리에 파란 셔츠"], ans: 2 },
+            { id: 7, type: "short", area: "듣기", pl: "Level 3 - 우수", q: "7. 대화를 듣고, 빈칸에 들어갈 알맞은 영어 요일을 적으세요.\nBoy: I am happy because it's _________." },
+            { id: 8, type: "short", area: "듣기", pl: "Level 4 - 매우 우수", q: "8. 대화를 듣고, 빈칸에 알맞은 영어 단어 두 개를 쉼표(,)로 구분하여 쓰세요.\nPolice: Go ( ⓐ ), and ( ⓑ ) left.\n(입력예시: straight, turn)" },
+            // 읽기 (9~17)
+            { id: 9, type: "choice", area: "읽기", pl: "Level 1 - 기초", q: "9. 초대장의 [Date: July 12th]에 해당하는 날짜로 알맞은 것은?", options: ["6월 12일", "7월 2일", "7월 12일", "8월 12일", "7월 20일"], ans: 2 },
+            { id: 10, type: "choice", area: "읽기", pl: "Level 1 - 기초", q: "10. 다음 문장이 묘사하는 겉모습으로 알맞은 것은?\n'He has big blue eyes.'", options: ["파란 모자를 쓴 사람", "파란 셔츠를 입은 사람", "눈이 크고 파란 눈동자를 가진 사람", "키가 큰 사람", "파란 신발을 신은 사람"], ans: 2 },
+            { id: 11, type: "choice", area: "읽기", pl: "Level 2 - 보통", q: "11. ID Card 정보 [Name: James Smith / Grade: 5th]와 일치하는 것은?", options: ["제임스는 4학년이다.", "제임스의 성(Last Name)은 Smith이다.", "제임스는 6학년이다.", "제임스는 축구를 싫어한다.", "제임스는 이름 철자를 모른다."], ans: 1 },
+            { id: 12, type: "choice", area: "읽기", pl: "Level 2 - 보통", q: "12. 다음 일기에서 글쓴이가 슬픈 진짜 이유를 고르세요.\n'I am sad because my best friend moved to another city.'", options: ["비가 와서", "축구를 못 해서", "친구가 이사를 가서", "길을 잃어서", "개가 아파서"], ans: 2 },
+            { id: 13, type: "choice", area: "읽기", pl: "Level 3 - 우수", q: "13. 문맥상 빈칸에 들어갈 기대 표현을 고르세요.\n'I have a big party. I (  ⓐ  ) wait!'", options: ["don't", "can't", "am", "do", "have"], ans: 1 },
+            { id: 14, type: "choice", area: "읽기", pl: "Level 3 - 우수", q: "14. 다음 안내를 읽고 도착지의 방향을 고르세요.\n'Go straight one block and turn left. It's on your right.'", options: ["왼쪽", "오른쪽", "직진", "뒤쪽", "길 건너편"], ans: 1 },
+            { id: 15, type: "short", area: "읽기", pl: "Level 3 - 우수", q: "15. 미아 전단지 [He has short straight hair. He is wearing a yellow cap.]를 읽고 빈칸을 채우세요.\nHair: ( ⓐ ) straight hair / Clothes: a yellow ( ⓑ )\n(입력예시: short, cap)" },
+            { id: 16, type: "short", area: "읽기", pl: "Level 4 - 매우 우수", q: "16. 'Because of this, I can't sleep now!'에서 this가 가리키는 이유(내일이 어린이날이라 가족과 놀러감 등)를 우리말로 쓰세요." },
+            { id: 17, type: "short", area: "읽기", pl: "Level 4 - 매우 우수", q: "17. 'Go straight two blocks and turn right. It's next to the bank.' 건물이 은행의 어느 쪽에 있는지 우리말로 적으세요 (예: 옆에)." },
+            // 쓰기 (18~25)
+            { id: 18, type: "short", area: "쓰기", pl: "Level 1 - 기초", q: "18. 이름 철자 묻기에 대한 답변의 빈칸 알파벳을 대문자로 쓰세요.\nS - M - (    ) - T - H." },
+            { id: 19, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "19. 땀 흘리며 수박 먹는 그림을 보고 좋아하는 계절(여름)을 영어로 쓰세요.\nI like ______________." },
+            { id: 20, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "20. 달력의 12월 25일을 보고 '12월'의 영어 단어 첫 글자를 대문자로 쓰세요.\nIt's on _______________ 25th." },
+            { id: 21, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "21. 제공된 피곤한 표정을 보고 빈칸에 알맞은 영어 단어를 쓰세요.\nWhy are you t_ _ _ _ ?" },
+            { id: 22, type: "short", area: "쓰기", pl: "Level 3 - 우수", q: "22. 앞으로 직진하라는 뜻의 길 안내 두 단어를 쓰세요.\n(  ⓐ  ) (  ⓑ  ). It's on your left." },
+            { id: 23, type: "short", area: "쓰기", pl: "Level 3 - 우수", q: "23. 괄호 안의 단어들을 바르게 배열하여 문장을 완성하세요.\n( eyes / has / She / big / blue / . )" },
+            { id: 24, type: "short", area: "쓰기", pl: "Level 4 - 매우 우수", q: "24. 메달을 딴 상황에서 [win, game]을 활용하여 행복한 이유를 나타내는 완전한 영어 문장(Because...)을 쓰세요." },
+            { id: 25, type: "short", area: "쓰기", pl: "Level 4 - 매우 우수", q: "25. 머리가 짧고(short hair) 빨간 셔츠를 입은(red shirt) 남자를 묘사하는 두 개의 영어 문장을 He로 시작하여 각각 작성하세요." }
+        ];
+
+        let currentStudent = null;
+        let examTimer = null;
+
+        // 4. UI 및 뷰 컨트롤 함수
+        window.switchView = (viewId) => {
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+            if(viewId === 'teacher-dashboard-view') {
+                window.fetchSubmissions();
+            }
+        };
+
+        // 5. 학생 평가 진행 로직
+        window.startExam = (e) => {
+            e.preventDefault();
+            if(!currentUser) {
+                alert("서버 연결 중입니다. 잠시 후 다시 시도해주세요.");
+                return;
+            }
+
+            currentStudent = {
+                school: document.getElementById('stu-school').value,
+                grade: document.getElementById('stu-grade').value,
+                class: document.getElementById('stu-class').value,
+                number: document.getElementById('stu-number').value,
+                name: document.getElementById('stu-name').value,
+                timestamp: new Date().toISOString()
+            };
+
+            document.getElementById('exam-student-info').innerText = 
+                `👩‍🎓 ${currentStudent.school} ${currentStudent.grade}학년 ${currentStudent.class}반 ${currentStudent.number}번 | ${currentStudent.name}`;
+            
+            renderQuestions();
+            window.switchView('exam-view');
+            startTimer(2400); // 40분 (2400초)
+        };
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = "";
+            
+            questions.forEach((q, idx) => {
+                let html = `
+                    <div class="pt-6 font-normal">
+                        <div class="flex items-center justify-between bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4">
+                            <span class="font-extrabold text-gray-700">[${q.area} 영역]</span>
+                            <span class="text-xs bg-indigo-100 text-indigo-800 font-bold px-3 py-1.5 rounded-full">Target: ${q.pl}</span>
+                        </div>
+                        <p class="text-lg font-bold text-gray-800 mb-5 whitespace-pre-line leading-relaxed">${q.q}</p>
+                `;
+
+                if(q.type === 'choice') {
+                    html += `<div class="space-y-2 ml-2">`;
+                    q.options.forEach((opt, oIdx) => {
+                        html += `
+                            <label class="flex items-center space-x-3 p-3 hover:bg-indigo-50 rounded-lg cursor-pointer border border-transparent hover:border-indigo-100 transition">
+                                <input type="radio" name="q-${q.id}" value="${oIdx}" required class="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300">
+                                <span class="text-gray-700 font-medium text-base">(${oIdx+1}) ${opt}</span>
+                            </label>
+                        `;
+                    });
+                    html += `</div>`;
+                } else {
+                    html += `
+                        <input type="text" name="q-${q.id}" required placeholder="여기에 정답을 입력하세요" 
+                            class="w-full md:w-3/4 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none mt-2 text-base shadow-sm">
+                    `;
+                }
+                html += `</div>`;
+                container.innerHTML += html;
+            });
+        }
+
+        function startTimer(duration) {
+            let timer = duration, minutes, seconds;
+            examTimer = setInterval(() => {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                document.getElementById('timer').innerText = minutes + ":" + seconds;
+
+                if (--timer < 0) {
+                    clearInterval(examTimer);
+                    alert("시험 시간 40분이 종료되었습니다. 답안지가 자동으로 제출됩니다.");
+                    document.getElementById('submit-btn').click();
+                }
+            }, 1000);
+        }
+
+        window.submitExam = async (e) => {
+            e.preventDefault();
+            clearInterval(examTimer);
+            document.getElementById('submit-btn').disabled = true;
+            document.getElementById('submit-btn').innerText = "제출 중...";
+
+            const formData = new FormData(document.getElementById('exam-form'));
+            let answers = {};
+            let choiceScore = 0; 
+            let maxChoiceScore = 0;
+
+            questions.forEach(q => {
+                const userVal = formData.get(`q-${q.id}`);
+                answers[q.id] = userVal;
+
+                if(q.type === 'choice') {
+                    maxChoiceScore++;
+                    if(parseInt(userVal) === q.ans) {
+                        choiceScore++;
+                    }
+                }
+            });
+
+            const submissionData = {
+                info: currentStudent,
+                answers: answers,
+                choiceScore: choiceScore,
+                maxChoiceScore: maxChoiceScore,
+                submittedAt: new Date()
+            };
+
+            try {
+                await addDoc(collection(db, basePath, 'submissions'), submissionData);
+                alert("✅ 답안 제출이 완료되었습니다. 수고하셨습니다!");
+                location.reload();
+            } catch(error) {
+                console.error("Submit Error: ", error);
+                alert("제출 중 오류가 발생했습니다. 교사에게 문의하세요.");
+                document.getElementById('submit-btn').disabled = false;
+                document.getElementById('submit-btn').innerText = "답안지 최종 제출하기";
+            }
+        };
+
+        // 6. 교사용 모드 로직
+        window.loginAsTeacher = () => {
+            const pwdInput = document.getElementById('teacher-pwd-input').value;
+            if(pwdInput === actualPassword) {
+                window.switchView('teacher-dashboard-view');
+                document.getElementById('teacher-pwd-input').value = "";
+            } else {
+                alert("비밀번호가 올바르지 않습니다.");
+            }
+        };
+
+        window.logoutTeacher = () => {
+            window.switchView('student-login-view');
+        };
+
+        window.fetchSubmissions = async () => {
+            if(!currentUser) return;
+            const rowsContainer = document.getElementById('student-data-rows');
+            rowsContainer.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">데이터를 불러오는 중입니다...</td></tr>`;
+
+            try {
+                // 저장된 시험지 데이터를 가져옴 (제출 시간순 정렬)
+                const q = query(collection(db, basePath, 'submissions'), orderBy('submittedAt', 'desc'));
+                const querySnapshot = await getDocs(q);
+                
+                let totalStudents = 0;
+                let sumChoiceScore = 0;
+                rowsContainer.innerHTML = "";
+
+                if(querySnapshot.empty) {
+                    rowsContainer.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">제출된 시험 답안이 없습니다.</td></tr>`;
+                    document.getElementById('stat-total-students').innerText = "0명";
+                    document.getElementById('stat-avg-score').innerText = "0 / 11점";
+                    return;
+                }
+
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    totalStudents++;
+                    sumChoiceScore += data.choiceScore || 0;
+
+                    let ansDetailsHtml = `<div class="space-y-1.5 text-xs max-h-40 overflow-y-auto p-2 bg-gray-50 rounded border border-gray-100">`;
+                    questions.forEach(q => {
+                        const isChoice = q.type === 'choice';
+                        const uAns = data.answers[q.id];
+                        let isCorrectHtml = "";
+                        
+                        if (isChoice) {
+                            const correct = parseInt(uAns) === q.ans;
+                            isCorrectHtml = correct ? `<span class="text-green-600 font-bold">(O)</span>` : `<span class="text-red-500 font-bold">(X)</span>`;
+                            const ansText = uAns !== null ? q.options[parseInt(uAns)] : "미응답";
+                            ansDetailsHtml += `<div><span class="font-bold text-gray-600">Q${q.id}.</span> ${ansText} ${isCorrectHtml}</div>`;
+                        } else {
+                            ansDetailsHtml += `<div><span class="font-bold text-gray-600">Q${q.id} (주관식):</span> <span class="text-indigo-600 font-mono font-bold">${uAns || '미응답'}</span></div>`;
+                        }
+                    });
+                    ansDetailsHtml += `</div>`;
+
+                    const dateStr = new Date(data.info.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+                    const rowHtml = `
+                        <tr class="hover:bg-indigo-50/30 transition">
+                            <td class="px-5 py-4">
+                                <div class="font-bold text-gray-800">${data.info.school}</div>
+                                <div class="text-xs text-gray-500 mt-1">${data.info.grade}학년 ${data.info.class}반 ${data.info.number}번</div>
+                            </td>
+                            <td class="px-5 py-4 font-extrabold text-indigo-700 text-base">${data.info.name}</td>
+                            <td class="px-5 py-4 text-center text-sm text-gray-500">${dateStr}</td>
+                            <td class="px-5 py-4 text-center">
+                                <span class="bg-green-100 border border-green-200 text-green-800 px-3 py-1.5 rounded-full font-bold text-sm">
+                                    ${data.choiceScore} / ${data.maxChoiceScore} 점
+                                </span>
+                            </td>
+                            <td class="px-5 py-4 w-1/2">${ansDetailsHtml}</td>
+                        </tr>
+                    `;
+                    rowsContainer.innerHTML += rowHtml;
+                });
+
+                document.getElementById('stat-total-students').innerText = totalStudents + "명";
+                document.getElementById('stat-avg-score').innerText = (sumChoiceScore / totalStudents).toFixed(1) + " 점";
+
+            } catch(error) {
+                console.error("Fetch Data Error: ", error);
+                rowsContainer.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-500">데이터를 불러오는 중 권한 에러가 발생했습니다. (Firestore 설정 확인 필요)</td></tr>`;
+            }
+        };
+
+        // 비밀번호 관리 모달 조작 함수
+        window.openPasswordModal = () => { document.getElementById('pwd-modal').classList.remove('hidden'); }
+        window.closePasswordModal = () => { 
+            document.getElementById('pwd-modal').classList.add('hidden'); 
+            document.getElementById('new-teacher-pwd').value = "";
+        }
+        window.changeTeacherPassword = async () => {
+            const newPwd = document.getElementById('new-teacher-pwd').value;
+            if(newPwd.trim() === "") return alert("공백은 비밀번호로 사용할 수 없습니다.");
+            
+            try {
+                await setDoc(doc(db, basePath, 'settings', 'config', 'password'), { value: newPwd });
+                actualPassword = newPwd;
+                alert("✅ 교사용 인증 비밀번호가 성공적으로 변경되었습니다.");
+                window.closePasswordModal();
+            } catch(error) {
+                console.error("Password Update Error:", error);
+                alert("비밀번호 변경에 실패했습니다.");
+            }
+        };
+    </script>
+</body>
+</html>
