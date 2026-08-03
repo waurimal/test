@@ -174,7 +174,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // Firestore 경로 설정 (규칙 준수)
+        // Firestore 경로 설정
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'english-exam-system';
         const basePath = `artifacts/${appId}/public/data`;
         
@@ -185,12 +185,14 @@
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             if (user) {
-                // 교사 비밀번호 세팅 가져오기
-                const pwdDoc = await getDoc(doc(db, basePath, 'settings', 'config', 'password'));
+                // 교사 비밀번호 세팅 가져오기 (경로 수정: collection/document 패턴 엄수)
+                const pwdDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'teacherConfig');
+                const pwdDoc = await getDoc(pwdDocRef);
+                
                 if (pwdDoc.exists()) {
-                    actualPassword = pwdDoc.data().value;
+                    actualPassword = pwdDoc.data().password;
                 } else {
-                    await setDoc(doc(db, basePath, 'settings', 'config', 'password'), { value: "1234" });
+                    await setDoc(pwdDocRef, { password: "1234" });
                 }
             }
         });
@@ -198,17 +200,30 @@
         // 자동 익명 로그인 실행
         signInAnonymously(auth).catch((error) => console.error("Auth Error:", error));
 
-        // 3. 문항 데이터 (총 25문항)
+        // TTS 오디오 재생 함수 (전역)
+        window.playAudio = (text) => {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // 현재 재생 중인 음성 중지
+                const msg = new SpeechSynthesisUtterance(text);
+                msg.lang = 'en-US';
+                msg.rate = 0.9; // 초등학생 대상이므로 살짝 느리게
+                window.speechSynthesis.speak(msg);
+            } else {
+                alert("이 브라우저는 음성 듣기를 지원하지 않습니다.");
+            }
+        };
+
+        // 3. 문항 데이터 (총 25문항) - 듣기 대본 스크립트로 분리
         const questions = [
             // 듣기 (1~8)
-            { id: 1, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "1. 대화를 듣고, 남자아이가 몇 학년인지 고르세요.\n(대본: What grade are you in? / I'm in the sixth grade.)", options: ["2학년", "3학년", "4학년", "5학년", "6학년"], ans: 4 },
-            { id: 2, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "2. 대화를 듣고, 두 사람이 이야기하고 있는 계절을 고르세요.\n(대본: What season do you like? / I like winter.)", options: ["봄 (spring)", "여름 (summer)", "가을 (fall)", "겨울 (winter)", "건기 (dry season)"], ans: 3 },
-            { id: 3, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "3. 대화를 듣고, 여자아이의 생일을 달력에서 고르세요.\n(대본: When is your birthday? / It's on April fifth.)", options: ["3월 5일", "4월 5일", "5월 4일", "4월 15일", "5월 15일"], ans: 1 },
-            { id: 4, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "4. 대화를 듣고, 남자아이가 기분이 좋은 이유로 알맞은 것을 고르세요.\n(대본: Why are you happy? / Because I got a black belt in Taekwondo.)", options: ["생일이라서", "수학 시험을 잘 봐서", "검은 띠를 따서", "방학이 시작되어서", "개가 병이 나아서"], ans: 2 },
-            { id: 5, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "5. 대화를 듣고, 여자아이가 가려고 하는 목적지의 위치를 설명 중 고르세요.\n(대본: Go straight one block and turn right. It's on your left.)", options: ["직진 후 좌회전", "직진 후 우회전", "길 건너편", "은행 옆", "두 블록 직진"], ans: 1 },
-            { id: 6, type: "choice", area: "듣기", pl: "Level 3 - 우수", q: "6. 대화를 듣고, 설명하는 사람의 특징을 고르세요.\n(대본: He has short curly hair. He is wearing a yellow shirt.)", options: ["긴 머리에 파란 셔츠", "짧은 생머리에 노란 셔츠", "짧은 곱슬머리에 노란 셔츠", "긴 곱슬머리에 빨간 셔츠", "짧은 생머리에 파란 셔츠"], ans: 2 },
-            { id: 7, type: "short", area: "듣기", pl: "Level 3 - 우수", q: "7. 대화를 듣고, 빈칸에 들어갈 알맞은 영어 요일을 적으세요.\nBoy: I am happy because it's _________." },
-            { id: 8, type: "short", area: "듣기", pl: "Level 4 - 매우 우수", q: "8. 대화를 듣고, 빈칸에 알맞은 영어 단어 두 개를 쉼표(,)로 구분하여 쓰세요.\nPolice: Go ( ⓐ ), and ( ⓑ ) left.\n(입력예시: straight, turn)" },
+            { id: 1, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "1. 대화를 듣고, 남자아이가 몇 학년인지 고르세요.", script: "What grade are you in? I'm in the sixth grade.", options: ["2학년", "3학년", "4학년", "5학년", "6학년"], ans: 4 },
+            { id: 2, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "2. 대화를 듣고, 두 사람이 이야기하고 있는 계절을 고르세요.", script: "What season do you like? I like winter.", options: ["봄 (spring)", "여름 (summer)", "가을 (fall)", "겨울 (winter)", "건기 (dry season)"], ans: 3 },
+            { id: 3, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "3. 대화를 듣고, 여자아이의 생일을 고르세요.", script: "When is your birthday? It is on April fifth.", options: ["3월 5일", "4월 5일", "5월 4일", "4월 15일", "5월 15일"], ans: 1 },
+            { id: 4, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "4. 대화를 듣고, 남자아이가 기분이 좋은 이유로 알맞은 것을 고르세요.", script: "Why are you happy? Because I got a black belt in Taekwondo.", options: ["생일이라서", "수학 시험을 잘 봐서", "검은 띠를 따서", "방학이 시작되어서", "개가 병이 나아서"], ans: 2 },
+            { id: 5, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "5. 대화를 듣고, 여자아이가 가려고 하는 목적지의 위치를 고르세요.", script: "Excuse me. Go straight one block, and turn right. It's on your left.", options: ["직진 후 좌회전", "직진 후 우회전", "길 건너편", "은행 옆", "두 블록 직진"], ans: 1 },
+            { id: 6, type: "choice", area: "듣기", pl: "Level 3 - 우수", q: "6. 대화를 듣고, 설명하는 사람의 특징을 고르세요.", script: "What does he look like? He has short curly hair. He is wearing a yellow shirt.", options: ["긴 머리에 파란 셔츠", "짧은 생머리에 노란 셔츠", "짧은 곱슬머리에 노란 셔츠", "긴 곱슬머리에 빨간 셔츠", "짧은 생머리에 파란 셔츠"], ans: 2 },
+            { id: 7, type: "short", area: "듣기", pl: "Level 3 - 우수", q: "7. 대화를 듣고, 빈칸에 들어갈 알맞은 영어 요일을 적으세요.\nBoy: I am happy because it's _________.", script: "Why are you happy today? Because it's Friday!" },
+            { id: 8, type: "short", area: "듣기", pl: "Level 4 - 매우 우수", q: "8. 대화를 듣고, 빈칸에 알맞은 영어 단어 두 개를 쉼표(,)로 구분하여 쓰세요.\nPolice: Go ( ⓐ ), and ( ⓑ ) left.\n(입력예시: straight, turn)", script: "Can I help you? Yes, I lost my way. Where is the library? Go straight, and turn left. It's next to the post office." },
             // 읽기 (9~17)
             { id: 9, type: "choice", area: "읽기", pl: "Level 1 - 기초", q: "9. 초대장의 [Date: July 12th]에 해당하는 날짜로 알맞은 것은?", options: ["6월 12일", "7월 2일", "7월 12일", "8월 12일", "7월 20일"], ans: 2 },
             { id: 10, type: "choice", area: "읽기", pl: "Level 1 - 기초", q: "10. 다음 문장이 묘사하는 겉모습으로 알맞은 것은?\n'He has big blue eyes.'", options: ["파란 모자를 쓴 사람", "파란 셔츠를 입은 사람", "눈이 크고 파란 눈동자를 가진 사람", "키가 큰 사람", "파란 신발을 신은 사람"], ans: 2 },
@@ -272,11 +287,14 @@
             container.innerHTML = "";
             
             questions.forEach((q, idx) => {
+                // 오디오 버튼 렌더링 로직
+                const audioBtn = q.script ? `<button type="button" onclick="window.playAudio('${q.script.replace(/'/g, "\\'")}')" class="ml-3 inline-flex items-center justify-center bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-1.5 rounded-full text-sm font-bold transition shadow-sm"><svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 3.5a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .5.5 5 5 0 0 0 5-5V9a5 5 0 0 0-5-5z"></path></svg>▶ 듣기 재생</button>` : '';
+
                 let html = `
                     <div class="pt-6 font-normal">
-                        <div class="flex items-center justify-between bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4">
+                        <div class="flex items-center bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 w-fit">
                             <span class="font-extrabold text-gray-700">[${q.area} 영역]</span>
-                            <span class="text-xs bg-indigo-100 text-indigo-800 font-bold px-3 py-1.5 rounded-full">Target: ${q.pl}</span>
+                            ${audioBtn}
                         </div>
                         <p class="text-lg font-bold text-gray-800 mb-5 whitespace-pre-line leading-relaxed">${q.q}</p>
                 `;
@@ -284,10 +302,11 @@
                 if(q.type === 'choice') {
                     html += `<div class="space-y-2 ml-2">`;
                     q.options.forEach((opt, oIdx) => {
+                        // 선택지 앞 번호 제거 적용
                         html += `
                             <label class="flex items-center space-x-3 p-3 hover:bg-indigo-50 rounded-lg cursor-pointer border border-transparent hover:border-indigo-100 transition">
                                 <input type="radio" name="q-${q.id}" value="${oIdx}" required class="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300">
-                                <span class="text-gray-700 font-medium text-base">(${oIdx+1}) ${opt}</span>
+                                <span class="text-gray-700 font-medium text-base">${opt}</span>
                             </label>
                         `;
                     });
@@ -415,6 +434,7 @@
                             const correct = parseInt(uAns) === q.ans;
                             isCorrectHtml = correct ? `<span class="text-green-600 font-bold">(O)</span>` : `<span class="text-red-500 font-bold">(X)</span>`;
                             const ansText = uAns !== null ? q.options[parseInt(uAns)] : "미응답";
+                            // 교사용 화면에서는 어떤 걸 찍었는지 확인할 수 있게 번호를 유지하거나 답변 내용만 띄워줌
                             ansDetailsHtml += `<div><span class="font-bold text-gray-600">Q${q.id}.</span> ${ansText} ${isCorrectHtml}</div>`;
                         } else {
                             ansDetailsHtml += `<div><span class="font-bold text-gray-600">Q${q.id} (주관식):</span> <span class="text-indigo-600 font-mono font-bold">${uAns || '미응답'}</span></div>`;
@@ -463,7 +483,8 @@
             if(newPwd.trim() === "") return alert("공백은 비밀번호로 사용할 수 없습니다.");
             
             try {
-                await setDoc(doc(db, basePath, 'settings', 'config', 'password'), { value: newPwd });
+                // 수정된 저장 경로 적용
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'teacherConfig'), { password: newPwd });
                 actualPassword = newPwd;
                 alert("✅ 교사용 인증 비밀번호가 성공적으로 변경되었습니다.");
                 window.closePasswordModal();
