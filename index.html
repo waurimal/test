@@ -6,6 +6,12 @@
     <title>6학년 1학기 영어 종합 평가 시스템</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 커스텀 스크롤바 (사이드바용) */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 4px; }
+    </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen">
 
@@ -17,7 +23,7 @@
         </button>
     </header>
 
-    <main class="max-w-4xl mx-auto p-4 md:p-8">
+    <main class="max-w-5xl mx-auto p-4 md:p-8">
 
         <!-- [VIEW 1] 학생 로그인 (진입 화면) -->
         <section id="student-login-view" class="view bg-white p-6 md:p-10 rounded-xl shadow-lg max-w-md mx-auto mt-12 border border-gray-100">
@@ -37,7 +43,19 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">반</label>
-                        <input type="number" id="stu-class" required min="1" max="20" placeholder="반" class="w-full mt-1 p-3 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                        <select id="stu-class" required class="w-full mt-1 p-3 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-indigo-500 outline-none transition appearance-none bg-white cursor-pointer">
+                            <option value="" disabled selected>선택</option>
+                            <option value="1">1반</option>
+                            <option value="2">2반</option>
+                            <option value="3">3반</option>
+                            <option value="4">4반</option>
+                            <option value="5">5반</option>
+                            <option value="6">6반</option>
+                            <option value="7">7반</option>
+                            <option value="8">8반</option>
+                            <option value="9">9반</option>
+                            <option value="10">10반</option>
+                        </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">번호</label>
@@ -55,7 +73,7 @@
         </section>
 
         <!-- [VIEW 2] 시험지 화면 (학생 평가용) -->
-        <section id="exam-view" class="view hidden bg-white p-6 md:p-8 rounded-xl shadow-lg space-y-8 border border-gray-100">
+        <section id="exam-view" class="view hidden bg-white p-6 md:p-8 rounded-xl shadow-lg border border-gray-100">
             <!-- 상단 정보 및 타이머 -->
             <div class="flex flex-col md:flex-row justify-between items-center border-b pb-6 mb-6 gap-4">
                 <div class="text-base md:text-lg font-bold text-indigo-900 bg-indigo-50 px-4 py-2 rounded-lg" id="exam-student-info"></div>
@@ -64,12 +82,34 @@
                 </div>
             </div>
 
-            <!-- 문항 출력 컨테이너 -->
-            <form id="exam-form" onsubmit="window.submitExam(event)" class="space-y-10 divide-y divide-gray-100">
-                <div id="questions-container" class="space-y-10"></div>
+            <!-- 문항 및 OMR 답안지 컨테이너 -->
+            <form id="exam-form" onsubmit="window.submitExam(event)">
+                <div class="flex flex-col md:flex-row gap-8 relative items-start">
+                    
+                    <!-- 왼쪽: 시험지 영역 -->
+                    <div id="questions-container" class="flex-1 space-y-10 divide-y divide-gray-100 pb-10">
+                        <!-- JS에서 동적 생성 -->
+                    </div>
+                    
+                    <!-- 오른쪽: OMR 사이드바 (PC화면 고정) -->
+                    <aside class="w-full md:w-64 shrink-0 sticky top-24 z-10 hidden md:block">
+                        <div class="bg-gray-50 p-5 border border-gray-200 rounded-xl shadow-sm">
+                            <h3 class="font-extrabold text-center text-gray-700 mb-4 tracking-wide">OMR 답안 확인란</h3>
+                            <div id="omr-sidebar" class="grid grid-cols-5 gap-2">
+                                <!-- JS에서 동적 생성 -->
+                            </div>
+                            <div class="mt-6 text-center">
+                                <button id="submit-btn-sidebar" type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold text-lg py-3 rounded-xl shadow-lg transition duration-200">
+                                    답안 최종 제출
+                                </button>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
                 
-                <div class="pt-10 text-center">
-                    <button id="submit-btn" type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold text-xl py-4 px-12 rounded-xl shadow-lg transition duration-200 w-full md:w-auto">
+                <!-- 모바일용 하단 제출 버튼 -->
+                <div class="pt-6 pb-10 text-center md:hidden border-t">
+                    <button id="submit-btn-mobile" type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold text-xl py-4 px-12 rounded-xl shadow-lg transition duration-200 w-full">
                         답안지 최종 제출하기
                     </button>
                 </div>
@@ -200,30 +240,53 @@
         // 자동 익명 로그인 실행
         signInAnonymously(auth).catch((error) => console.error("Auth Error:", error));
 
-        // TTS 오디오 재생 함수 (전역)
-        window.playAudio = (text) => {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // 현재 재생 중인 음성 중지
+        // TTS 오디오 재생 함수 (다중 화자 지원)
+        window.playAudio = (scriptText) => {
+            if (!('speechSynthesis' in window)) {
+                alert("이 브라우저는 음성 듣기를 지원하지 않습니다.");
+                return;
+            }
+            window.speechSynthesis.cancel(); // 현재 재생 중인 음성 중지
+
+            // 스크립트를 파이프(|)로 구분하여 배열 생성
+            const parts = scriptText.split('|');
+            
+            parts.forEach(part => {
+                const textSegments = part.split(':');
+                if(textSegments.length < 2) return;
+                
+                const speaker = textSegments[0].trim();
+                const text = textSegments[1].trim();
+                
                 const msg = new SpeechSynthesisUtterance(text);
                 msg.lang = 'en-US';
-                msg.rate = 0.9; // 초등학생 대상이므로 살짝 느리게
+                msg.rate = 0.85; // 초등학생 대상이므로 살짝 느리게
+
+                // 화자 태그에 따른 피치(음높이) 조정
+                if (speaker === 'G' || speaker === 'W') { // Girl, Woman
+                    msg.pitch = 1.4; 
+                } else if (speaker === 'B' || speaker === 'M') { // Boy, Man
+                    msg.pitch = 0.7; 
+                } else {
+                    msg.pitch = 1.0;
+                }
+                
                 window.speechSynthesis.speak(msg);
-            } else {
-                alert("이 브라우저는 음성 듣기를 지원하지 않습니다.");
-            }
+            });
         };
 
-        // 3. 문항 데이터 (총 25문항)
+        // 3. 문항 데이터 (총 25문항 - 요청사항 반영 업데이트)
         const questions = [
             // 듣기 (1~8)
-            { id: 1, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "1. 대화를 듣고, 남자아이가 몇 학년인지 고르세요.", script: "What grade are you in? I'm in the sixth grade.", options: ["2학년", "3학년", "4학년", "5학년", "6학년"], ans: 4 },
-            { id: 2, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "2. 대화를 듣고, 두 사람이 이야기하고 있는 계절을 고르세요.", script: "What season do you like? I like winter.", options: ["봄 (spring)", "여름 (summer)", "가을 (fall)", "겨울 (winter)", "건기 (dry season)"], ans: 3 },
-            { id: 3, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "3. 대화를 듣고, 여자아이의 생일을 고르세요.", script: "When is your birthday? It is on April fifth.", options: ["3월 5일", "4월 5일", "5월 4일", "4월 15일", "5월 15일"], ans: 1 },
-            { id: 4, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "4. 대화를 듣고, 남자아이가 기분이 좋은 이유로 알맞은 것을 고르세요.", script: "Why are you happy? Because I got a black belt in Taekwondo.", options: ["생일이라서", "수학 시험을 잘 봐서", "검은 띠를 따서", "방학이 시작되어서", "개가 병이 나아서"], ans: 2 },
-            { id: 5, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "5. 대화를 듣고, 여자아이가 가려고 하는 목적지의 위치를 고르세요.", script: "Excuse me. Go straight one block, and turn right. It's on your left.", options: ["직진 후 좌회전", "직진 후 우회전", "길 건너편", "은행 옆", "두 블록 직진"], ans: 1 },
-            { id: 6, type: "choice", area: "듣기", pl: "Level 3 - 우수", q: "6. 대화를 듣고, 설명하는 사람의 특징을 고르세요.", script: "What does he look like? He has short curly hair. He is wearing a yellow shirt.", options: ["긴 머리에 파란 셔츠", "짧은 생머리에 노란 셔츠", "짧은 곱슬머리에 노란 셔츠", "긴 곱슬머리에 빨간 셔츠", "짧은 생머리에 파란 셔츠"], ans: 2 },
-            { id: 7, type: "short", area: "듣기", pl: "Level 3 - 우수", q: "7. 대화를 듣고, 빈칸에 들어갈 알맞은 영어 요일을 적으세요.\nBoy: I am happy because it's _________.", script: "Why are you happy today? Because it's Friday!" },
-            { id: 8, type: "short", area: "듣기", pl: "Level 4 - 매우 우수", q: "8. 대화를 듣고, 빈칸에 알맞은 영어 단어 두 개를 쉼표(,)로 구분하여 쓰세요.\nPolice: Go ( ⓐ ), and ( ⓑ ) left.\n(입력예시: straight, turn)", script: "Can I help you? Yes, I lost my way. Where is the library? Go straight, and turn left. It's next to the post office." },
+            { id: 1, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "1. 대화를 듣고, 남자아이가 몇 학년인지 고르세요.", script: "G: What grade are you in? | B: I'm in the sixth grade.", options: ["2학년", "3학년", "4학년", "5학년", "6학년"], ans: 4 },
+            { id: 2, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "2. 대화를 듣고, 두 사람이 이야기하고 있는 계절을 고르세요.", script: "B: What season do you like? | G: I like winter.", options: ["봄 (spring)", "여름 (summer)", "가을 (fall)", "겨울 (winter)", "건기 (dry season)"], ans: 3 },
+            { id: 3, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "3. 대화를 듣고, 여자아이의 생일을 고르세요.", script: "B: When is your birthday? | G: It is on April fifth.", options: ["3월 5일", "4월 5일", "5월 4일", "4월 15일", "5월 15일"], ans: 1 },
+            { id: 4, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "4. 대화를 듣고, 남자아이가 기분이 좋은 이유로 알맞은 것을 고르세요.", script: "G: Why are you happy? | B: Because I got a black belt in Taekwondo.", options: ["생일이라서", "수학 시험을 잘 봐서", "검은 띠를 따서", "방학이 시작되어서", "개가 병이 나아서"], ans: 2 },
+            { id: 5, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "5. 대화를 듣고, 여자아이가 가려고 하는 목적지의 위치를 고르세요.", script: "G: Excuse me. Where is the library? | B: Go straight one block, and turn right. It's on your left.", options: ["직진 후 좌회전", "직진 후 우회전", "길 건너편", "은행 옆", "두 블록 직진"], ans: 1 },
+            { id: 6, type: "choice", area: "듣기", pl: "Level 3 - 우수", q: "6. 대화를 듣고, 설명하는 사람의 특징을 고르세요.", script: "B: What does he look like? | G: He has short curly hair. He is wearing a yellow shirt.", options: ["긴 머리에 파란 셔츠", "짧은 생머리에 노란 셔츠", "짧은 곱슬머리에 노란 셔츠", "긴 곱슬머리에 빨간 셔츠", "짧은 생머리에 파란 셔츠"], ans: 2 },
+            { id: 7, type: "short", area: "듣기", pl: "Level 3 - 우수", q: "7. 대화를 듣고, 빈칸에 들어갈 알맞은 영어 요일을 적으세요.\nBoy: I am happy because it's _________.", script: "G: Why are you happy today? | B: Because it's Friday!" },
+            { id: 8, type: "short", area: "듣기", pl: "Level 4 - 매우 우수", q: "8. 대화를 듣고, 빈칸에 알맞은 영어 단어 두 개를 쉼표(,)로 구분하여 쓰세요.\nPolice: Go ( ⓐ ), and ( ⓑ ) left.\n(입력예시: stop, right)", script: "W: Can I help you? | B: Yes, I lost my way. Where is the library? | W: Go straight, and turn left. It's next to the post office." },
+            
             // 읽기 (9~17)
             { id: 9, type: "choice", area: "읽기", pl: "Level 1 - 기초", q: "9. 초대장의 [Date: July 12th]에 해당하는 날짜로 알맞은 것은?", options: ["6월 12일", "7월 2일", "7월 12일", "8월 12일", "7월 20일"], ans: 2 },
             { id: 10, type: "choice", area: "읽기", pl: "Level 1 - 기초", q: "10. 다음 문장이 묘사하는 겉모습으로 알맞은 것은?\n'He has big blue eyes.'", options: ["파란 모자를 쓴 사람", "파란 셔츠를 입은 사람", "눈이 크고 파란 눈동자를 가진 사람", "키가 큰 사람", "파란 신발을 신은 사람"], ans: 2 },
@@ -231,15 +294,16 @@
             { id: 12, type: "choice", area: "읽기", pl: "Level 2 - 보통", q: "12. 다음 일기에서 글쓴이가 슬픈 진짜 이유를 고르세요.\n'I am sad because my best friend moved to another city.'", options: ["비가 와서", "축구를 못 해서", "친구가 이사를 가서", "길을 잃어서", "개가 아파서"], ans: 2 },
             { id: 13, type: "choice", area: "읽기", pl: "Level 3 - 우수", q: "13. 문맥상 빈칸에 들어갈 기대 표현을 고르세요.\n'I have a big party. I (  ⓐ  ) wait!'", options: ["don't", "can't", "am", "do", "have"], ans: 1 },
             { id: 14, type: "choice", area: "읽기", pl: "Level 3 - 우수", q: "14. 다음 안내를 읽고 도착지의 방향을 고르세요.\n'Go straight one block and turn left. It's on your right.'", options: ["왼쪽", "오른쪽", "직진", "뒤쪽", "길 건너편"], ans: 1 },
-            { id: 15, type: "short", area: "읽기", pl: "Level 3 - 우수", q: "15. 미아 전단지 [He has short straight hair. He is wearing a yellow cap.]를 읽고 빈칸을 채우세요.\nHair: ( ⓐ ) straight hair / Clothes: a yellow ( ⓑ )\n(입력예시: short, cap)" },
-            { id: 16, type: "short", area: "읽기", pl: "Level 4 - 매우 우수", q: "16. 'Because of this, I can't sleep now!'에서 this가 가리키는 이유(내일이 어린이날이라 가족과 놀러감 등)를 우리말로 쓰세요." },
-            { id: 17, type: "short", area: "읽기", pl: "Level 4 - 매우 우수", q: "17. 'Go straight two blocks and turn right. It's next to the bank.' 건물이 은행의 어느 쪽에 있는지 우리말로 적으세요 (예: 옆에)." },
+            { id: 15, type: "short", area: "읽기", pl: "Level 3 - 우수", q: "15. 미아 전단지 [He has short straight hair. He is wearing a yellow cap.]를 읽고 빈칸을 채우세요.\nHair: ( ⓐ ) straight hair / Clothes: a yellow ( ⓑ )\n(입력예시: long, shirt)" },
+            { id: 16, type: "short", area: "읽기", pl: "Level 4 - 매우 우수", q: "16. 'Because of this, I can't sleep now!'에서 글쓴이가 밤에 잠을 자지 못하는 이유를 본문에서 찾아 우리말로 자유롭게 쓰세요.\n(예: 내일 놀이공원에 가기 때문에, 어린이날이라서 등)" },
+            { id: 17, type: "choice", area: "읽기", pl: "Level 4 - 매우 우수", q: "17. 'Go straight two blocks and turn right. It's next to the bank.' 이메일을 읽고, 도착지가 은행의 어느 쪽에 위치해 있는지 고르세요.", options: ["앞에", "뒤에", "옆에", "안에", "건너편에"], ans: 2 },
+            
             // 쓰기 (18~25)
             { id: 18, type: "short", area: "쓰기", pl: "Level 1 - 기초", q: "18. 이름 철자 묻기에 대한 답변의 빈칸 알파벳을 대문자로 쓰세요.\nS - M - (    ) - T - H." },
-            { id: 19, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "19. 땀 흘리며 수박 먹는 그림을 보고 좋아하는 계절(여름)을 영어로 쓰세요.\nI like ______________." },
+            { id: 19, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "19. 땀 흘리며 수박 먹는 그림을 보고 좋아하는 계절(여름)을 영어로 쓰세요.\nI like ______________.", img: "🥵🍉" },
             { id: 20, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "20. 달력의 12월 25일을 보고 '12월'의 영어 단어 첫 글자를 대문자로 쓰세요.\nIt's on _______________ 25th." },
-            { id: 21, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "21. 제공된 피곤한 표정을 보고 빈칸에 알맞은 영어 단어를 쓰세요.\nWhy are you t_ _ _ _ ?" },
-            { id: 22, type: "short", area: "쓰기", pl: "Level 3 - 우수", q: "22. 앞으로 직진하라는 뜻의 길 안내 두 단어를 쓰세요.\n(  ⓐ  ) (  ⓑ  ). It's on your left." },
+            { id: 21, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "21. 제공된 피곤한 표정을 보고 빈칸에 알맞은 영어 단어를 쓰세요.\nWhy are you ____________ ?\n(피곤한 상태를 나타내는 영어 단어 1개)", img: "😩" },
+            { id: 22, type: "short", area: "쓰기", pl: "Level 3 - 우수", q: "22. 앞으로 직진하라는 뜻의 길 안내 표현을 완성하세요.\n_____________ . It's on your left.\n(두 단어를 띄어쓰기하여 적으세요)" },
             { id: 23, type: "short", area: "쓰기", pl: "Level 3 - 우수", q: "23. 괄호 안의 단어들을 바르게 배열하여 문장을 완성하세요.\n( eyes / has / She / big / blue / . )" },
             { id: 24, type: "short", area: "쓰기", pl: "Level 4 - 매우 우수", q: "24. 메달을 딴 상황에서 [win, game]을 활용하여 행복한 이유를 나타내는 완전한 영어 문장(Because...)을 쓰세요." },
             { id: 25, type: "short", area: "쓰기", pl: "Level 4 - 매우 우수", q: "25. 머리가 짧고(short hair) 빨간 셔츠를 입은(red shirt) 남자를 묘사하는 두 개의 영어 문장을 He로 시작하여 각각 작성하세요." }
@@ -284,17 +348,25 @@
 
         function renderQuestions() {
             const container = document.getElementById('questions-container');
+            const omrContainer = document.getElementById('omr-sidebar');
             container.innerHTML = "";
+            let omrHtml = "";
             
             questions.forEach((q, idx) => {
+                // 음성 재생 버튼 처리
                 const audioBtn = q.script ? `<button type="button" onclick="window.playAudio('${q.script.replace(/'/g, "\\'")}')" class="ml-3 inline-flex items-center justify-center bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-1.5 rounded-full text-sm font-bold transition shadow-sm"><svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 3.5a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .5.5 5 5 0 0 0 5-5V9a5 5 0 0 0-5-5z"></path></svg>▶ 듣기 재생</button>` : '';
+                
+                // 이미지/이모지 처리
+                const imgElement = q.img ? `<div class="text-5xl text-center py-4 bg-gray-50 rounded-lg my-3 border border-dashed border-gray-300 tracking-widest">${q.img}</div>` : '';
 
+                // 본문 렌더링
                 let html = `
-                    <div class="pt-6 font-normal">
+                    <div id="q-container-${q.id}" class="pt-8 first:pt-4 scroll-mt-28 font-normal">
                         <div class="flex items-center bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 w-fit">
                             <span class="font-extrabold text-gray-700">[${q.area} 영역]</span>
                             ${audioBtn}
                         </div>
+                        ${imgElement}
                         <p class="text-lg font-bold text-gray-800 mb-5 whitespace-pre-line leading-relaxed">${q.q}</p>
                 `;
 
@@ -312,11 +384,32 @@
                 } else {
                     html += `
                         <input type="text" name="q-${q.id}" required placeholder="여기에 정답을 입력하세요" 
-                            class="w-full md:w-3/4 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none mt-2 text-base shadow-sm">
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none mt-2 text-base shadow-sm">
                     `;
                 }
                 html += `</div>`;
                 container.innerHTML += html;
+                
+                // OMR 사이드바 아이템 생성
+                omrHtml += `<div id="omr-box-${q.id}" class="w-full aspect-square flex items-center justify-center rounded border border-gray-300 text-sm font-bold text-gray-400 bg-white transition-colors duration-200 cursor-pointer hover:bg-gray-100" onclick="document.getElementById('q-container-${q.id}').scrollIntoView({behavior: 'smooth'})">${q.id}</div>`;
+            });
+            
+            omrContainer.innerHTML = omrHtml;
+
+            // 폼 입력 시 OMR 갱신 이벤트 등록
+            document.getElementById('exam-form').addEventListener('input', () => {
+                const formData = new FormData(document.getElementById('exam-form'));
+                questions.forEach(q => {
+                    const val = formData.get(`q-${q.id}`);
+                    const box = document.getElementById(`omr-box-${q.id}`);
+                    if(val && val.toString().trim() !== '') {
+                        box.classList.remove('bg-white', 'text-gray-400', 'border-gray-300');
+                        box.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600');
+                    } else {
+                        box.classList.add('bg-white', 'text-gray-400', 'border-gray-300');
+                        box.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600');
+                    }
+                });
             });
         }
 
@@ -333,7 +426,7 @@
                 if (--timer < 0) {
                     clearInterval(examTimer);
                     alert("시험 시간 40분이 종료되었습니다. 답안지가 자동으로 제출됩니다.");
-                    document.getElementById('submit-btn').click();
+                    document.getElementById('exam-form').requestSubmit();
                 }
             }, 1000);
         }
@@ -341,8 +434,11 @@
         window.submitExam = async (e) => {
             e.preventDefault();
             clearInterval(examTimer);
-            document.getElementById('submit-btn').disabled = true;
-            document.getElementById('submit-btn').innerText = "제출 중...";
+            
+            const btn1 = document.getElementById('submit-btn-sidebar');
+            const btn2 = document.getElementById('submit-btn-mobile');
+            if(btn1) { btn1.disabled = true; btn1.innerText = "제출 중..."; }
+            if(btn2) { btn2.disabled = true; btn2.innerText = "제출 중..."; }
 
             const formData = new FormData(document.getElementById('exam-form'));
             let answers = {};
@@ -376,8 +472,8 @@
             } catch(error) {
                 console.error("Submit Error: ", error);
                 alert("제출 중 오류가 발생했습니다. 교사에게 문의하세요.");
-                document.getElementById('submit-btn').disabled = false;
-                document.getElementById('submit-btn').innerText = "답안지 최종 제출하기";
+                if(btn1) { btn1.disabled = false; btn1.innerText = "답안 최종 제출"; }
+                if(btn2) { btn2.disabled = false; btn2.innerText = "답안지 최종 제출하기"; }
             }
         };
 
