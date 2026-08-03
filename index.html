@@ -7,10 +7,11 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 커스텀 스크롤바 (사이드바용) */
+        /* 커스텀 스크롤바 (사이드바 및 모달용) */
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px;}
         ::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a0a0a5; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen">
@@ -93,12 +94,13 @@
                     
                     <!-- 오른쪽: OMR 사이드바 (PC화면 고정) -->
                     <aside class="w-full md:w-64 shrink-0 sticky top-24 z-10 hidden md:block">
-                        <div class="bg-gray-50 p-5 border border-gray-200 rounded-xl shadow-sm">
-                            <h3 class="font-extrabold text-center text-gray-700 mb-4 tracking-wide">OMR 답안 확인란</h3>
-                            <div id="omr-sidebar" class="grid grid-cols-5 gap-2">
+                        <div class="bg-gray-50 p-4 border border-gray-200 rounded-xl shadow-sm">
+                            <h3 class="font-extrabold text-center text-gray-700 mb-4 tracking-wide border-b pb-2">답안 확인란</h3>
+                            <!-- 스크롤 가능한 OMR 리스트 -->
+                            <div id="omr-sidebar" class="flex flex-col gap-2 max-h-[55vh] overflow-y-auto pr-1 pb-2">
                                 <!-- JS에서 동적 생성 -->
                             </div>
-                            <div class="mt-6 text-center">
+                            <div class="mt-4 text-center">
                                 <button id="submit-btn-sidebar" type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold text-lg py-3 rounded-xl shadow-lg transition duration-200">
                                     답안 최종 제출
                                 </button>
@@ -136,7 +138,7 @@
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-6 gap-4">
                 <div>
                     <h2 class="text-2xl font-extrabold text-indigo-800">학생 응답 및 성취도 관리 대시보드</h2>
-                    <p class="text-sm text-gray-500 font-medium mt-1">내재적 설정법(ESS) 기반 평가 결과</p>
+                    <p class="text-sm text-gray-500 font-medium mt-1">내재적 설정법(ESS) 기반 자동 채점 시스템 (선다형 + 서답형)</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <button onclick="window.fetchSubmissions()" class="bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold text-sm px-4 py-2 rounded-lg transition">새로고침</button>
@@ -152,7 +154,7 @@
                     <div class="text-3xl font-extrabold text-indigo-900 mt-2" id="stat-total-students">0명</div>
                 </div>
                 <div class="bg-green-50 p-5 rounded-xl border border-green-100 text-center shadow-sm">
-                    <div class="text-xs font-bold text-green-600 uppercase tracking-wide">평균 점수(객관식)</div>
+                    <div class="text-xs font-bold text-green-600 uppercase tracking-wide">평균 점수 (총 25점)</div>
                     <div class="text-3xl font-extrabold text-green-900 mt-2" id="stat-avg-score">0 점</div>
                 </div>
             </div>
@@ -162,16 +164,15 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-5 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">소속 정보</th>
-                            <th class="px-5 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">이름</th>
-                            <th class="px-5 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">제출 시각</th>
-                            <th class="px-5 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">객관식 점수</th>
-                            <th class="px-5 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">응답 데이터 확인 (객관식+서답형)</th>
+                            <th class="px-5 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-1/6">소속 정보</th>
+                            <th class="px-5 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-1/6">이름 / 제출시각</th>
+                            <th class="px-5 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider w-1/6">선다형 / 서답형 점수</th>
+                            <th class="px-5 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">응답 데이터 확인 (선다형+서답형)</th>
                         </tr>
                     </thead>
                     <tbody id="student-data-rows" class="bg-white divide-y divide-gray-200 text-sm">
                         <!-- JS에서 동적으로 삽입 -->
-                        <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">데이터를 불러오는 중입니다...</td></tr>
+                        <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">데이터를 불러오는 중입니다...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -221,14 +222,12 @@
         let currentUser = null;
         let actualPassword = "1234";
 
-        // 2. 인증 초기화 (데이터베이스 읽기/쓰기 권한 확보)
+        // 2. 인증 초기화
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             if (user) {
-                // 교사 비밀번호 세팅 가져오기
                 const pwdDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'teacherConfig');
                 const pwdDoc = await getDoc(pwdDocRef);
-                
                 if (pwdDoc.exists()) {
                     actualPassword = pwdDoc.data().password;
                 } else {
@@ -237,18 +236,31 @@
             }
         });
         
-        // 자동 익명 로그인 실행
         signInAnonymously(auth).catch((error) => console.error("Auth Error:", error));
 
-        // TTS 오디오 재생 함수 (다중 화자 지원)
+        // TTS 오디오 로딩 및 준비 (다중 화자 고도화)
+        let availableVoices = [];
+        function initVoices() {
+            availableVoices = window.speechSynthesis.getVoices();
+        }
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = initVoices;
+            initVoices();
+        }
+
         window.playAudio = (scriptText) => {
             if (!('speechSynthesis' in window)) {
                 alert("이 브라우저는 음성 듣기를 지원하지 않습니다.");
                 return;
             }
-            window.speechSynthesis.cancel(); // 현재 재생 중인 음성 중지
+            window.speechSynthesis.cancel(); // 현재 재생 중지
 
-            // 스크립트를 파이프(|)로 구분하여 배열 생성
+            // OS 및 브라우저 환경에 따라 최적의 남/여 목소리 탐색
+            const femaleVoice = availableVoices.find(v => v.lang.startsWith('en') && /female|zira|samantha|victoria|susan/i.test(v.name)) 
+                             || availableVoices.find(v => v.lang.startsWith('en'));
+            const maleVoice = availableVoices.find(v => v.lang.startsWith('en') && /male|david|alex|daniel|george/i.test(v.name)) 
+                             || availableVoices.find(v => v.lang.startsWith('en'));
+
             const parts = scriptText.split('|');
             
             parts.forEach(part => {
@@ -260,13 +272,15 @@
                 
                 const msg = new SpeechSynthesisUtterance(text);
                 msg.lang = 'en-US';
-                msg.rate = 0.85; // 초등학생 대상이므로 살짝 느리게
+                msg.rate = 0.85; 
 
-                // 화자 태그에 따른 피치(음높이) 조정
-                if (speaker === 'G' || speaker === 'W') { // Girl, Woman
-                    msg.pitch = 1.4; 
-                } else if (speaker === 'B' || speaker === 'M') { // Boy, Man
-                    msg.pitch = 0.7; 
+                // 화자에 맞춰 목소리와 피치 배정
+                if (speaker === 'G' || speaker === 'W') { 
+                    if(femaleVoice) msg.voice = femaleVoice;
+                    msg.pitch = 1.3; 
+                } else if (speaker === 'B' || speaker === 'M') { 
+                    if(maleVoice) msg.voice = maleVoice;
+                    msg.pitch = 0.8; 
                 } else {
                     msg.pitch = 1.0;
                 }
@@ -275,7 +289,30 @@
             });
         };
 
-        // 3. 문항 데이터 (총 25문항 - 요청사항 반영 업데이트)
+        // 서답형 채점 유틸리티 함수 (공백/마침표 제거 후 비교)
+        function gradeShortAnswer(q, userVal) {
+            if (!userVal) return false;
+            const normalizedUser = userVal.trim().toLowerCase().replace(/\s+/g, ' ').replace(/[.,!?]/g, '');
+
+            if (q.keywords) { // 자유 서술형(키워드 포함 여부)
+                return q.keywords.some(kw => normalizedUser.includes(kw));
+            }
+
+            if (Array.isArray(q.ans)) {
+                return q.ans.some(a => {
+                    const normA = a.trim().toLowerCase().replace(/\s+/g, ' ').replace(/[.,!?]/g, '');
+                    return normalizedUser === normA;
+                });
+            }
+
+            if (typeof q.ans === 'string') {
+                const normA = q.ans.trim().toLowerCase().replace(/\s+/g, ' ').replace(/[.,!?]/g, '');
+                return normalizedUser === normA;
+            }
+            return false;
+        }
+
+        // 3. 문항 데이터 (총 25문항 - 서답형 정답(ans) 데이터 추가)
         const questions = [
             // 듣기 (1~8)
             { id: 1, type: "choice", area: "듣기", pl: "Level 1 - 기초", q: "1. 대화를 듣고, 남자아이가 몇 학년인지 고르세요.", script: "G: What grade are you in? | B: I'm in the sixth grade.", options: ["2학년", "3학년", "4학년", "5학년", "6학년"], ans: 4 },
@@ -284,8 +321,8 @@
             { id: 4, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "4. 대화를 듣고, 남자아이가 기분이 좋은 이유로 알맞은 것을 고르세요.", script: "G: Why are you happy? | B: Because I got a black belt in Taekwondo.", options: ["생일이라서", "수학 시험을 잘 봐서", "검은 띠를 따서", "방학이 시작되어서", "개가 병이 나아서"], ans: 2 },
             { id: 5, type: "choice", area: "듣기", pl: "Level 2 - 보통", q: "5. 대화를 듣고, 여자아이가 가려고 하는 목적지의 위치를 고르세요.", script: "G: Excuse me. Where is the library? | B: Go straight one block, and turn right. It's on your left.", options: ["직진 후 좌회전", "직진 후 우회전", "길 건너편", "은행 옆", "두 블록 직진"], ans: 1 },
             { id: 6, type: "choice", area: "듣기", pl: "Level 3 - 우수", q: "6. 대화를 듣고, 설명하는 사람의 특징을 고르세요.", script: "B: What does he look like? | G: He has short curly hair. He is wearing a yellow shirt.", options: ["긴 머리에 파란 셔츠", "짧은 생머리에 노란 셔츠", "짧은 곱슬머리에 노란 셔츠", "긴 곱슬머리에 빨간 셔츠", "짧은 생머리에 파란 셔츠"], ans: 2 },
-            { id: 7, type: "short", area: "듣기", pl: "Level 3 - 우수", q: "7. 대화를 듣고, 빈칸에 들어갈 알맞은 영어 요일을 적으세요.\nBoy: I am happy because it's _________.", script: "G: Why are you happy today? | B: Because it's Friday!" },
-            { id: 8, type: "short", area: "듣기", pl: "Level 4 - 매우 우수", q: "8. 대화를 듣고, 빈칸에 알맞은 영어 단어 두 개를 쉼표(,)로 구분하여 쓰세요.\nPolice: Go ( ⓐ ), and ( ⓑ ) left.\n(입력예시: stop, right)", script: "W: Can I help you? | B: Yes, I lost my way. Where is the library? | W: Go straight, and turn left. It's next to the post office." },
+            { id: 7, type: "short", area: "듣기", pl: "Level 3 - 우수", q: "7. 대화를 듣고, 빈칸에 들어갈 알맞은 영어 요일을 적으세요.\nBoy: I am happy because it's _________.", script: "G: Why are you happy today? | B: Because it's Friday!", ans: "Friday" },
+            { id: 8, type: "short", area: "듣기", pl: "Level 4 - 매우 우수", q: "8. 대화를 듣고, 빈칸에 알맞은 영어 단어 두 개를 쉼표(,)로 구분하여 쓰세요.\nPolice: Go ( ⓐ ), and ( ⓑ ) left.\n(입력예시: stop, right)", script: "W: Can I help you? | B: Yes, I lost my way. Where is the library? | W: Go straight, and turn left. It's next to the post office.", ans: ["straight, turn", "straight,turn", "straight turn"] },
             
             // 읽기 (9~17)
             { id: 9, type: "choice", area: "읽기", pl: "Level 1 - 기초", q: "9. 초대장의 [Date: July 12th]에 해당하는 날짜로 알맞은 것은?", options: ["6월 12일", "7월 2일", "7월 12일", "8월 12일", "7월 20일"], ans: 2 },
@@ -294,19 +331,19 @@
             { id: 12, type: "choice", area: "읽기", pl: "Level 2 - 보통", q: "12. 다음 일기에서 글쓴이가 슬픈 진짜 이유를 고르세요.\n'I am sad because my best friend moved to another city.'", options: ["비가 와서", "축구를 못 해서", "친구가 이사를 가서", "길을 잃어서", "개가 아파서"], ans: 2 },
             { id: 13, type: "choice", area: "읽기", pl: "Level 3 - 우수", q: "13. 문맥상 빈칸에 들어갈 기대 표현을 고르세요.\n'I have a big party. I (  ⓐ  ) wait!'", options: ["don't", "can't", "am", "do", "have"], ans: 1 },
             { id: 14, type: "choice", area: "읽기", pl: "Level 3 - 우수", q: "14. 다음 안내를 읽고 도착지의 방향을 고르세요.\n'Go straight one block and turn left. It's on your right.'", options: ["왼쪽", "오른쪽", "직진", "뒤쪽", "길 건너편"], ans: 1 },
-            { id: 15, type: "short", area: "읽기", pl: "Level 3 - 우수", q: "15. 미아 전단지 [He has short straight hair. He is wearing a yellow cap.]를 읽고 빈칸을 채우세요.\nHair: ( ⓐ ) straight hair / Clothes: a yellow ( ⓑ )\n(입력예시: long, shirt)" },
-            { id: 16, type: "short", area: "읽기", pl: "Level 4 - 매우 우수", q: "16. 'Because of this, I can't sleep now!'에서 글쓴이가 밤에 잠을 자지 못하는 이유를 본문에서 찾아 우리말로 자유롭게 쓰세요.\n(예: 내일 놀이공원에 가기 때문에, 어린이날이라서 등)" },
+            { id: 15, type: "short", area: "읽기", pl: "Level 3 - 우수", q: "15. 미아 전단지 [He has short straight hair. He is wearing a yellow cap.]를 읽고 빈칸을 채우세요.\nHair: ( ⓐ ) straight hair / Clothes: a yellow ( ⓑ )\n(입력예시: long, shirt)", ans: ["short, cap", "short,cap", "short cap"] },
+            { id: 16, type: "short", area: "읽기", pl: "Level 4 - 매우 우수", q: "16. 'Because of this, I can't sleep now!'에서 글쓴이가 밤에 잠을 자지 못하는 이유를 본문에서 찾아 우리말로 자유롭게 쓰세요.\n(예: 내일 놀이공원에 가기 때문에, 어린이날이라서 등)", keywords: ["놀이공원", "어린이날", "어린이 날"] },
             { id: 17, type: "choice", area: "읽기", pl: "Level 4 - 매우 우수", q: "17. 'Go straight two blocks and turn right. It's next to the bank.' 이메일을 읽고, 도착지가 은행의 어느 쪽에 위치해 있는지 고르세요.", options: ["앞에", "뒤에", "옆에", "안에", "건너편에"], ans: 2 },
             
             // 쓰기 (18~25)
-            { id: 18, type: "short", area: "쓰기", pl: "Level 1 - 기초", q: "18. 이름 철자 묻기에 대한 답변의 빈칸 알파벳을 대문자로 쓰세요.\nS - M - (    ) - T - H." },
-            { id: 19, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "19. 땀 흘리며 수박 먹는 그림을 보고 좋아하는 계절(여름)을 영어로 쓰세요.\nI like ______________.", img: "🥵🍉" },
-            { id: 20, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "20. 달력의 12월 25일을 보고 '12월'의 영어 단어 첫 글자를 대문자로 쓰세요.\nIt's on _______________ 25th." },
-            { id: 21, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "21. 제공된 피곤한 표정을 보고 빈칸에 알맞은 영어 단어를 쓰세요.\nWhy are you ____________ ?\n(피곤한 상태를 나타내는 영어 단어 1개)", img: "😩" },
-            { id: 22, type: "short", area: "쓰기", pl: "Level 3 - 우수", q: "22. 앞으로 직진하라는 뜻의 길 안내 표현을 완성하세요.\n_____________ . It's on your left.\n(두 단어를 띄어쓰기하여 적으세요)" },
-            { id: 23, type: "short", area: "쓰기", pl: "Level 3 - 우수", q: "23. 괄호 안의 단어들을 바르게 배열하여 문장을 완성하세요.\n( eyes / has / She / big / blue / . )" },
-            { id: 24, type: "short", area: "쓰기", pl: "Level 4 - 매우 우수", q: "24. 메달을 딴 상황에서 [win, game]을 활용하여 행복한 이유를 나타내는 완전한 영어 문장(Because...)을 쓰세요." },
-            { id: 25, type: "short", area: "쓰기", pl: "Level 4 - 매우 우수", q: "25. 머리가 짧고(short hair) 빨간 셔츠를 입은(red shirt) 남자를 묘사하는 두 개의 영어 문장을 He로 시작하여 각각 작성하세요." }
+            { id: 18, type: "short", area: "쓰기", pl: "Level 1 - 기초", q: "18. 이름 철자 묻기에 대한 답변의 빈칸 알파벳을 대문자로 쓰세요.\nS - M - (    ) - T - H.", ans: "I" },
+            { id: 19, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "19. 땀 흘리며 수박 먹는 그림을 보고 좋아하는 계절(여름)을 영어로 쓰세요.\nI like ______________.", img: "🥵🍉", ans: "summer" },
+            { id: 20, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "20. 달력의 12월 25일을 보고 '12월'의 영어 단어 첫 글자를 대문자로 쓰세요.\nIt's on _______________ 25th.", ans: "December" },
+            { id: 21, type: "short", area: "쓰기", pl: "Level 2 - 보통", q: "21. 제공된 피곤한 표정을 보고 빈칸에 알맞은 영어 단어를 쓰세요.\nWhy are you ____________ ?\n(피곤한 상태를 나타내는 영어 단어 1개)", img: "😩", ans: "tired" },
+            { id: 22, type: "short", area: "쓰기", pl: "Level 3 - 우수", q: "22. 앞으로 직진하라는 뜻의 길 안내 표현을 완성하세요.\n_____________ . It's on your left.\n(두 단어를 띄어쓰기하여 적으세요)", ans: ["Go straight", "go straight"] },
+            { id: 23, type: "short", area: "쓰기", pl: "Level 3 - 우수", q: "23. 괄호 안의 단어들을 바르게 배열하여 문장을 완성하세요.\n( eyes / has / She / big / blue / . )", ans: ["She has big blue eyes", "She has big blue eyes."] },
+            { id: 24, type: "short", area: "쓰기", pl: "Level 4 - 매우 우수", q: "24. 메달을 딴 상황에서 [win, game]을 활용하여 행복한 이유를 나타내는 완전한 영어 문장(Because...)을 쓰세요.", ans: ["Because I won the game", "Because I win the game", "Because I won the game.", "Because I win the game."] },
+            { id: 25, type: "short", area: "쓰기", pl: "Level 4 - 매우 우수", q: "25. 머리가 짧고(short hair) 빨간 셔츠를 입은(red shirt) 남자를 묘사하는 두 개의 영어 문장을 He로 시작하여 각각 작성하세요.", ans: ["He has short hair He is wearing a red shirt", "He has short hair. He is wearing a red shirt."] }
         ];
 
         let currentStudent = null;
@@ -390,24 +427,37 @@
                 html += `</div>`;
                 container.innerHTML += html;
                 
-                // OMR 사이드바 아이템 생성
-                omrHtml += `<div id="omr-box-${q.id}" class="w-full aspect-square flex items-center justify-center rounded border border-gray-300 text-sm font-bold text-gray-400 bg-white transition-colors duration-200 cursor-pointer hover:bg-gray-100" onclick="document.getElementById('q-container-${q.id}').scrollIntoView({behavior: 'smooth'})">${q.id}</div>`;
+                // OMR 사이드바 아이템 생성 (리스트 형태)
+                omrHtml += `
+                    <div id="omr-box-${q.id}" class="flex justify-between items-center p-2.5 rounded-lg border border-gray-200 bg-white cursor-pointer hover:bg-gray-50 transition" onclick="document.getElementById('q-container-${q.id}').scrollIntoView({behavior: 'smooth'})">
+                        <span class="font-extrabold text-gray-600 text-sm whitespace-nowrap mr-2">${q.id}번</span>
+                        <span id="omr-val-${q.id}" class="text-gray-400 text-xs font-semibold truncate text-right w-full">미입력</span>
+                    </div>
+                `;
             });
             
             omrContainer.innerHTML = omrHtml;
 
-            // 폼 입력 시 OMR 갱신 이벤트 등록
+            // 폼 입력 시 OMR 갱신 이벤트 등록 (응답 내용 표시)
             document.getElementById('exam-form').addEventListener('input', () => {
                 const formData = new FormData(document.getElementById('exam-form'));
                 questions.forEach(q => {
                     const val = formData.get(`q-${q.id}`);
                     const box = document.getElementById(`omr-box-${q.id}`);
+                    const valSpan = document.getElementById(`omr-val-${q.id}`);
+
                     if(val && val.toString().trim() !== '') {
-                        box.classList.remove('bg-white', 'text-gray-400', 'border-gray-300');
-                        box.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600');
+                        box.classList.add('border-indigo-500', 'bg-indigo-50');
+                        valSpan.classList.replace('text-gray-400', 'text-indigo-700');
+                        if(q.type === 'choice') {
+                            valSpan.innerText = `(${parseInt(val) + 1})번 선택`;
+                        } else {
+                            valSpan.innerText = val.toString().trim();
+                        }
                     } else {
-                        box.classList.add('bg-white', 'text-gray-400', 'border-gray-300');
-                        box.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600');
+                        box.classList.remove('border-indigo-500', 'bg-indigo-50');
+                        valSpan.classList.replace('text-indigo-700', 'text-gray-400');
+                        valSpan.innerText = '미입력';
                     }
                 });
             });
@@ -443,7 +493,9 @@
             const formData = new FormData(document.getElementById('exam-form'));
             let answers = {};
             let choiceScore = 0; 
+            let shortScore = 0;
             let maxChoiceScore = 0;
+            let maxShortScore = 0;
 
             questions.forEach(q => {
                 const userVal = formData.get(`q-${q.id}`);
@@ -454,6 +506,11 @@
                     if(parseInt(userVal) === q.ans) {
                         choiceScore++;
                     }
+                } else if(q.type === 'short') {
+                    maxShortScore++;
+                    if (gradeShortAnswer(q, userVal)) {
+                        shortScore++;
+                    }
                 }
             });
 
@@ -461,13 +518,15 @@
                 info: currentStudent,
                 answers: answers,
                 choiceScore: choiceScore,
+                shortScore: shortScore,
                 maxChoiceScore: maxChoiceScore,
+                maxShortScore: maxShortScore,
                 submittedAt: new Date().toISOString()
             };
 
             try {
                 await addDoc(collection(db, basePath, 'submissions'), submissionData);
-                alert("✅ 답안 제출이 완료되었습니다. 수고하셨습니다!");
+                alert("✅ 답안 제출 및 자동 채점이 완료되었습니다. 수고하셨습니다!");
                 location.reload();
             } catch(error) {
                 console.error("Submit Error: ", error);
@@ -495,18 +554,17 @@
         window.fetchSubmissions = async () => {
             if(!currentUser) return;
             const rowsContainer = document.getElementById('student-data-rows');
-            rowsContainer.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">데이터를 불러오는 중입니다...</td></tr>`;
+            rowsContainer.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">데이터를 불러오는 중입니다...</td></tr>`;
 
             try {
-                // 저장된 시험지 데이터를 가져옴 (단순 쿼리 사용으로 권한 에러 방지)
                 const querySnapshot = await getDocs(collection(db, basePath, 'submissions'));
                 
                 let totalStudents = 0;
-                let sumChoiceScore = 0;
+                let sumTotalScore = 0;
                 rowsContainer.innerHTML = "";
 
                 if(querySnapshot.empty) {
-                    rowsContainer.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">제출된 시험 답안이 없습니다.</td></tr>`;
+                    rowsContainer.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">제출된 시험 답안이 없습니다.</td></tr>`;
                     document.getElementById('stat-total-students').innerText = "0명";
                     document.getElementById('stat-avg-score').innerText = "0 점";
                     return;
@@ -517,7 +575,6 @@
                     submissionsData.push(docSnap.data());
                 });
 
-                // 메모리 상에서 제출 시간(submittedAt) 기준으로 내림차순 정렬
                 submissionsData.sort((a, b) => {
                     const timeA = new Date(a.submittedAt || 0).getTime();
                     const timeB = new Date(b.submittedAt || 0).getTime();
@@ -526,9 +583,11 @@
 
                 submissionsData.forEach((data) => {
                     totalStudents++;
-                    sumChoiceScore += data.choiceScore || 0;
+                    const cScore = data.choiceScore || 0;
+                    const sScore = data.shortScore || 0;
+                    sumTotalScore += (cScore + sScore);
 
-                    let ansDetailsHtml = `<div class="space-y-1.5 text-xs max-h-40 overflow-y-auto p-2 bg-gray-50 rounded border border-gray-100">`;
+                    let ansDetailsHtml = `<div class="space-y-1.5 text-xs max-h-48 overflow-y-auto p-3 bg-gray-50 rounded border border-gray-200 custom-scrollbar">`;
                     questions.forEach(q => {
                         const isChoice = q.type === 'choice';
                         const uAns = data.answers[q.id];
@@ -538,9 +597,11 @@
                             const correct = parseInt(uAns) === q.ans;
                             isCorrectHtml = correct ? `<span class="text-green-600 font-bold">(O)</span>` : `<span class="text-red-500 font-bold">(X)</span>`;
                             const ansText = uAns !== null ? q.options[parseInt(uAns)] : "미응답";
-                            ansDetailsHtml += `<div><span class="font-bold text-gray-600">Q${q.id}.</span> ${ansText} ${isCorrectHtml}</div>`;
+                            ansDetailsHtml += `<div><span class="font-bold text-gray-600 w-12 inline-block">Q${q.id}.</span> <span class="text-gray-800">${ansText}</span> ${isCorrectHtml}</div>`;
                         } else {
-                            ansDetailsHtml += `<div><span class="font-bold text-gray-600">Q${q.id} (주관식):</span> <span class="text-indigo-600 font-mono font-bold">${uAns || '미응답'}</span></div>`;
+                            const correct = gradeShortAnswer(q, uAns);
+                            isCorrectHtml = correct ? `<span class="text-green-600 font-bold">(O)</span>` : `<span class="text-red-500 font-bold">(X)</span>`;
+                            ansDetailsHtml += `<div><span class="font-bold text-gray-600 w-12 inline-block">Q${q.id}.</span> <span class="text-indigo-600 font-mono font-bold break-all">${uAns || '미응답'}</span> ${isCorrectHtml}</div>`;
                         }
                     });
                     ansDetailsHtml += `</div>`;
@@ -548,17 +609,19 @@
                     const dateStr = new Date(data.info.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 
                     const rowHtml = `
-                        <tr class="hover:bg-indigo-50/30 transition">
-                            <td class="px-5 py-4">
+                        <tr class="hover:bg-indigo-50/30 transition border-b">
+                            <td class="px-5 py-4 align-top">
                                 <div class="font-bold text-gray-800">${data.info.school}</div>
                                 <div class="text-xs text-gray-500 mt-1">${data.info.grade}학년 ${data.info.class}반 ${data.info.number}번</div>
                             </td>
-                            <td class="px-5 py-4 font-extrabold text-indigo-700 text-base">${data.info.name}</td>
-                            <td class="px-5 py-4 text-center text-sm text-gray-500">${dateStr}</td>
-                            <td class="px-5 py-4 text-center">
-                                <span class="bg-green-100 border border-green-200 text-green-800 px-3 py-1.5 rounded-full font-bold text-sm">
-                                    ${data.choiceScore} / ${data.maxChoiceScore} 점
-                                </span>
+                            <td class="px-5 py-4 align-top">
+                                <div class="font-extrabold text-indigo-700 text-base mb-1">${data.info.name}</div>
+                                <div class="text-xs text-gray-400">${dateStr}</div>
+                            </td>
+                            <td class="px-5 py-4 text-center align-top space-y-2">
+                                <div><span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">선다형 ${cScore} / ${data.maxChoiceScore}</span></div>
+                                <div><span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-bold">서답형 ${sScore} / ${data.maxShortScore}</span></div>
+                                <div class="pt-2 border-t border-gray-100"><span class="text-indigo-900 font-black">총점: ${cScore + sScore}</span></div>
                             </td>
                             <td class="px-5 py-4 w-1/2">${ansDetailsHtml}</td>
                         </tr>
@@ -567,15 +630,15 @@
                 });
 
                 document.getElementById('stat-total-students').innerText = totalStudents + "명";
-                document.getElementById('stat-avg-score').innerText = (sumChoiceScore / totalStudents).toFixed(1) + " 점";
+                document.getElementById('stat-avg-score').innerText = (sumTotalScore / totalStudents).toFixed(1) + " 점";
 
             } catch(error) {
                 console.error("Fetch Data Error: ", error);
-                rowsContainer.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-500">데이터를 불러오는 중 권한 에러가 발생했습니다. (Firestore 설정 확인 필요)</td></tr>`;
+                rowsContainer.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-500">데이터를 불러오는 중 권한 에러가 발생했습니다.</td></tr>`;
             }
         };
 
-        // 비밀번호 관리 모달 조작 함수
+        // 비밀번호 관리 모달
         window.openPasswordModal = () => { document.getElementById('pwd-modal').classList.remove('hidden'); }
         window.closePasswordModal = () => { 
             document.getElementById('pwd-modal').classList.add('hidden'); 
